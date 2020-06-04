@@ -3,13 +3,19 @@
     [switch]$CreatePath = $false
  )  
 
- function Test-Administrator
-{  
+
+#---------------------------------------------------------------------------------------------------------------
+# script is hardcoded to my local config, but this could be spun out into a config file if flexibility is needed
+$filePath = "C:\Shared\Scanner"
+$deviceID = "{6BDD1FC6-810F-11D0-BEC7-08002BE2092F}\0000"
+#---------------------------------------------------------------------------------------------------------------
+
+
+function Test-Administrator {  
     $user = [Security.Principal.WindowsIdentity]::GetCurrent();
     (New-Object Security.Principal.WindowsPrincipal $user).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)  
 }
 
- $filePath = "C:\Shared\Scanner"
 
 if(-not (Test-Path $filePath)){
     if($CreatePath){
@@ -18,7 +24,7 @@ if(-not (Test-Path $filePath)){
         }
         $xp = Get-ExecutionPolicy
         Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force
-        New-Item -Path "C:\Shared\Scanner" -ItemType Directory -Force
+        New-Item -Path $filePath -ItemType Directory -Force
         if (@(Get-SmbShare | Select Name | Where {$_.Name -eq "Scanner"}).Count -ne 1){
             New-SmbShare -Name "Scanner" -Path $filePath -FullAccess "Everyone"
         }
@@ -29,10 +35,10 @@ if(-not (Test-Path $filePath)){
     }
 }
 
-exit
-
+# connect to device
 $deviceManager = new-object -ComObject WIA.DeviceManager
-$device = $deviceManager.DeviceInfos.Item(1).Connect()    
+$device = ($deviceManager.DeviceInfos | where {$_.DeviceID -eq $deviceID}).Connect()    
+
 
 $wiaFormatJPG = "{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}"
 foreach ($item in $device.Items) { 
