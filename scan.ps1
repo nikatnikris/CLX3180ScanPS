@@ -1,7 +1,35 @@
-﻿if(-not (Test-Path "C:\Shared\Scanner")){
-    New-Item -Path "C:\Shared\Scanner" -ItemType Directory -Force
-    NET SHARE Scanner=C:\Shared\Scanner /GRANT:everyone,FULL
+﻿ [CmdletBinding()]  
+ param (
+    [switch]$CreatePath = $false
+ )  
+
+ function Test-Administrator
+{  
+    $user = [Security.Principal.WindowsIdentity]::GetCurrent();
+    (New-Object Security.Principal.WindowsPrincipal $user).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)  
 }
+
+ $filePath = "C:\Shared\Scanner"
+
+if(-not (Test-Path $filePath)){
+    if($CreatePath){
+        if(-not (Test-Administrator)){
+            throw "You must run powershell as an administrator to create shares"
+        }
+        $xp = Get-ExecutionPolicy
+        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Force
+        New-Item -Path "C:\Shared\Scanner" -ItemType Directory -Force
+        if (@(Get-SmbShare | Select Name | Where {$_.Name -eq "Scanner"}).Count -ne 1){
+            New-SmbShare -Name "Scanner" -Path $filePath -FullAccess "Everyone"
+        }
+        Set-ExecutionPolicy $xp -Force
+    } else {
+        throw "Folder/share '$filePath' does not exist.  Use '-CreatePath' switch to create this"
+        exit
+    }
+}
+
+exit
 
 $deviceManager = new-object -ComObject WIA.DeviceManager
 $device = $deviceManager.DeviceInfos.Item(1).Connect()    
